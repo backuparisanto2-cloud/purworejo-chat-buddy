@@ -253,3 +253,60 @@ export const getAdminOverview = createServerFn({ method: "GET" })
       topUsers,
     };
   });
+
+export type AdminMessageRow = {
+  id: string;
+  waNumber: string | null;
+  contactName: string;
+  direction: string;
+  senderType: string;
+  text: string;
+  status: string | null;
+  createdAt: string;
+};
+
+/** Pesan warga terbaru beserta waktu & status pengiriman (Owner saja). */
+export const getRecentMessages = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<AdminMessageRow[]> => {
+    await assertOwner(context);
+    const db = context.supabase;
+
+    const { data: messages } = await db
+      .from("messages")
+      .select("id, conversation_id, direction, sender_type, content, status, created_at")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    const rows = messages ?? [];
+    if (rows.length === 0) return [];
+
+    const { data: conversations } = await db
+      .from("conversations")
+      .select("id, contact_id")
+      .limit(2000);
+    const { data: contacts } = await db.from("contacts").select("id, name, wa_number").limit(2000);
+
+    const contactById = new Map((contacts ?? []).map((c) => [c.id, c]));
+    const contactByConversation = new Map(
+      (conversations ?? []).map((c) => [c.id, c.contact_id ? contactById.get(c.contact_id) : undefined]),
+    );
+
+    return rows.map((m) => {
+      const contact = m.conversation_id ? contactByConversation.get(m.conversation_id) : undefined;
+      const content = (m.content ?? {}) as { text?: { body?: string } | string };
+      const text =
+        typeof content.text === "string"
+          ? content.text
+          : (content.text?.body ?? "(tanpa teks)");
+      return {
+        id: m.id,
+        waNumber: contact?.wa_number ?? null,
+        contactName: contact?.name || contact?.wa_number || "Warga",
+        direction: m.direction,
+        senderType: m.sender_type,
+        text,
+        status: m.status ?? null,
+        createdAt: m.created_at,
+      };
+    });
+  });
