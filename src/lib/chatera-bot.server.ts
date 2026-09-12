@@ -451,8 +451,11 @@ export async function resolveReply(
   } else {
     const question = (text ?? "").trim();
     const engine = await getBotEngine();
+    // Di menu utama (belum masuk sub-menu), pertanyaan bebas warga selalu
+    // dikirim ke AI eksternal JTG; kegagalan otomatis fallback ke kata kunci.
+    const atMainMenu = !currentMenuPath;
     result =
-      engine === "ai_external"
+      engine === "ai_external" || atMainMenu
         ? await resolveAiReply(question)
         : await resolveKnowledgeReply(question);
   }

@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { getAdminOverview, getStatistics } from "@/lib/statistics.functions";
+import { getAdminOverview, getRecentMessages, getStatistics } from "@/lib/statistics.functions";
 import { useAuth } from "@/lib/auth-context";
 import { cn } from "@/lib/utils";
 
@@ -407,7 +407,65 @@ function StatistikOwnerView() {
             )}
           </CardContent>
         </Card>
+
+        <RecentMessagesCard />
       </div>
     </AppShell>
+  );
+}
+
+function RecentMessagesCard() {
+  const fetchMessages = useServerFn(getRecentMessages);
+  const { data, isLoading } = useQuery({
+    queryKey: ["statistik-recent-messages"],
+    queryFn: () => fetchMessages(),
+    refetchInterval: 15000,
+  });
+  const rows = data ?? [];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Pesan Masuk Terbaru</CardTitle>
+        <CardDescription>Setiap pesan WhatsApp warga yang diterima, lengkap dengan waktu dan statusnya</CardDescription>
+      </CardHeader>
+      <CardContent className="p-0">
+        {rows.length === 0 ? (
+          <p className="p-6 text-sm text-muted-foreground">
+            {isLoading ? "Memuat data…" : "Belum ada pesan masuk."}
+          </p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-48">Warga</TableHead>
+                <TableHead>Pesan</TableHead>
+                <TableHead className="w-28">Arah</TableHead>
+                <TableHead className="w-28">Status</TableHead>
+                <TableHead className="w-44">Waktu</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((m) => (
+                <TableRow key={m.id}>
+                  <TableCell>
+                    <p className="font-medium">{m.contactName}</p>
+                    <p className="text-xs text-muted-foreground">{m.waNumber ?? "-"}</p>
+                  </TableCell>
+                  <TableCell className="max-w-md truncate text-muted-foreground">{m.text}</TableCell>
+                  <TableCell>
+                    <Badge variant={m.direction === "inbound" ? "default" : "secondary"}>
+                      {m.direction === "inbound" ? "Masuk" : "Keluar"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{m.status ?? "-"}</TableCell>
+                  <TableCell className="text-muted-foreground">{formatDateTime(m.createdAt)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
   );
 }
