@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          bot_engine: string
+          created_at: string
+          id: string
+          instansi_name: string
+          jam_buka: string
+          jam_tutup: string
+          logo_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          bot_engine?: string
+          created_at?: string
+          id?: string
+          instansi_name?: string
+          jam_buka?: string
+          jam_tutup?: string
+          logo_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bot_engine?: string
+          created_at?: string
+          id?: string
+          instansi_name?: string
+          jam_buka?: string
+          jam_tutup?: string
+          logo_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bot_menus: {
         Row: {
           body: string
@@ -145,11 +178,56 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_status_events: {
+        Row: {
+          actor: string | null
+          assignee_chatera_id: string | null
+          chatera_conversation_id: string | null
+          conversation_id: string | null
+          created_at: string
+          from_status: string | null
+          id: string
+          source: string
+          to_status: string | null
+        }
+        Insert: {
+          actor?: string | null
+          assignee_chatera_id?: string | null
+          chatera_conversation_id?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          source?: string
+          to_status?: string | null
+        }
+        Update: {
+          actor?: string | null
+          assignee_chatera_id?: string | null
+          chatera_conversation_id?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          source?: string
+          to_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_status_events_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversations: {
         Row: {
           agent_name: string | null
           agent_user_id: string | null
           assigned_agent_chatera_id: string | null
+          awaiting_operator_confirmation: boolean
           chatera_conversation_id: string | null
           contact_id: string | null
           created_at: string
@@ -163,6 +241,7 @@ export type Database = {
           agent_name?: string | null
           agent_user_id?: string | null
           assigned_agent_chatera_id?: string | null
+          awaiting_operator_confirmation?: boolean
           chatera_conversation_id?: string | null
           contact_id?: string | null
           created_at?: string
@@ -176,6 +255,7 @@ export type Database = {
           agent_name?: string | null
           agent_user_id?: string | null
           assigned_agent_chatera_id?: string | null
+          awaiting_operator_confirmation?: boolean
           chatera_conversation_id?: string | null
           contact_id?: string | null
           created_at?: string
