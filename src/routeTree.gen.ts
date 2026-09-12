@@ -20,7 +20,6 @@ import { Route as AuthenticatedSetupChateraRouteImport } from './routes/_authent
 import { Route as AuthenticatedStatistikRouteImport } from './routes/_authenticated/statistik'
 import { Route as ApiWebhooksChateraRouteImport } from './routes/api/webhooks/chatera'
 import { Route as ApiPublicHooksAutoCloseConversationsRouteImport } from './routes/api/public/hooks/auto-close-conversations'
-import { Route as ApiPublicHooksSeedOwnerTempRouteImport } from './routes/api/public/hooks/seed-owner-temp'
 import { Route as ApiPublicWebhooksChateraRouteImport } from './routes/api/public/webhooks/chatera'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -80,12 +79,6 @@ const ApiPublicHooksAutoCloseConversationsRoute =
     path: '/api/public/hooks/auto-close-conversations',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicHooksSeedOwnerTempRoute =
-  ApiPublicHooksSeedOwnerTempRouteImport.update({
-    id: '/api/public/hooks/seed-owner-temp',
-    path: '/api/public/hooks/seed-owner-temp',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiPublicWebhooksChateraRoute =
   ApiPublicWebhooksChateraRouteImport.update({
     id: '/api/public/webhooks/chatera',
@@ -104,7 +97,6 @@ export interface FileRoutesByFullPath {
   '/statistik': typeof AuthenticatedStatistikRoute
   '/api/webhooks/chatera': typeof ApiWebhooksChateraRoute
   '/api/public/hooks/auto-close-conversations': typeof ApiPublicHooksAutoCloseConversationsRoute
-  '/api/public/hooks/seed-owner-temp': typeof ApiPublicHooksSeedOwnerTempRoute
   '/api/public/webhooks/chatera': typeof ApiPublicWebhooksChateraRoute
 }
 export interface FileRoutesByTo {
@@ -118,7 +110,6 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/api/webhooks/chatera': typeof ApiWebhooksChateraRoute
   '/api/public/hooks/auto-close-conversations': typeof ApiPublicHooksAutoCloseConversationsRoute
-  '/api/public/hooks/seed-owner-temp': typeof ApiPublicHooksSeedOwnerTempRoute
   '/api/public/webhooks/chatera': typeof ApiPublicWebhooksChateraRoute
 }
 export interface FileRoutesById {
@@ -134,7 +125,6 @@ export interface FileRoutesById {
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/api/webhooks/chatera': typeof ApiWebhooksChateraRoute
   '/api/public/hooks/auto-close-conversations': typeof ApiPublicHooksAutoCloseConversationsRoute
-  '/api/public/hooks/seed-owner-temp': typeof ApiPublicHooksSeedOwnerTempRoute
   '/api/public/webhooks/chatera': typeof ApiPublicWebhooksChateraRoute
 }
 export interface FileRouteTypes {
@@ -150,7 +140,6 @@ export interface FileRouteTypes {
     | '/statistik'
     | '/api/webhooks/chatera'
     | '/api/public/hooks/auto-close-conversations'
-    | '/api/public/hooks/seed-owner-temp'
     | '/api/public/webhooks/chatera'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -164,7 +153,6 @@ export interface FileRouteTypes {
     | '/'
     | '/api/webhooks/chatera'
     | '/api/public/hooks/auto-close-conversations'
-    | '/api/public/hooks/seed-owner-temp'
     | '/api/public/webhooks/chatera'
   id:
     | '__root__'
@@ -179,7 +167,6 @@ export interface FileRouteTypes {
     | '/_authenticated/'
     | '/api/webhooks/chatera'
     | '/api/public/hooks/auto-close-conversations'
-    | '/api/public/hooks/seed-owner-temp'
     | '/api/public/webhooks/chatera'
   fileRoutesById: FileRoutesById
 }
@@ -188,7 +175,6 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ApiWebhooksChateraRoute: typeof ApiWebhooksChateraRoute
   ApiPublicHooksAutoCloseConversationsRoute: typeof ApiPublicHooksAutoCloseConversationsRoute
-  ApiPublicHooksSeedOwnerTempRoute: typeof ApiPublicHooksSeedOwnerTempRoute
   ApiPublicWebhooksChateraRoute: typeof ApiPublicWebhooksChateraRoute
 }
 
@@ -271,13 +257,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksAutoCloseConversationsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/hooks/seed-owner-temp': {
-      id: '/api/public/hooks/seed-owner-temp'
-      path: '/api/public/hooks/seed-owner-temp'
-      fullPath: '/api/public/hooks/seed-owner-temp'
-      preLoaderRoute: typeof ApiPublicHooksSeedOwnerTempRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/webhooks/chatera': {
       id: '/api/public/webhooks/chatera'
       path: '/api/public/webhooks/chatera'
@@ -317,7 +296,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiWebhooksChateraRoute: ApiWebhooksChateraRoute,
   ApiPublicHooksAutoCloseConversationsRoute:
     ApiPublicHooksAutoCloseConversationsRoute,
-  ApiPublicHooksSeedOwnerTempRoute: ApiPublicHooksSeedOwnerTempRoute,
   ApiPublicWebhooksChateraRoute: ApiPublicWebhooksChateraRoute,
 }
 export const routeTree = rootRouteImport
