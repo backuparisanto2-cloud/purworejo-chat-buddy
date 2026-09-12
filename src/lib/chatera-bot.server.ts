@@ -172,9 +172,9 @@ export function isMenuInput(
   if (normalized === "") return true;
   if (GREETINGS.has(normalized)) return true;
   const cleaned = normalized.replace(/[)\]\s]/g, "");
-  if (!/^\d+(\.\d+)*$/.test(cleaned)) return false;
-  if (cleaned === "0" || PURWOREJO_CONTENT[cleaned]) return true;
-  return Boolean(currentMenuPath && PURWOREJO_CONTENT[`${currentMenuPath}.${cleaned}`]);
+  // Semua input berupa angka ditangani navigasi menu (termasuk angka yang tidak
+  // ditawarkan di layar aktif -> dijawab "pilihan tidak dikenali" + menu ulang).
+  return /^\d+(\.\d+)*$/.test(cleaned);
 }
 
 export function needsAgent(text: string | null | undefined): boolean {
