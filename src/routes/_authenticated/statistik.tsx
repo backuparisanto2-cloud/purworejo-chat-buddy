@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { getAdminOverview, getStatistics } from "@/lib/statistics.functions";
+import { getAdminOverview, getRecentMessages, getStatistics } from "@/lib/statistics.functions";
 import { useAuth } from "@/lib/auth-context";
 import { cn } from "@/lib/utils";
 
