@@ -53,12 +53,77 @@ function formatDuration(seconds: number | null): string {
   return `${m} mnt ${String(s).padStart(2, "0")} dtk`;
 }
 
+const STATUS_LABEL: Record<string, string> = {
+  bot_active: "Bot Aktif",
+  waiting_agent: "Menunggu Agent",
+  agent_active: "Ditangani Agent",
+  closed: "Selesai",
+};
+
+function formatDateTime(value: string | null): string {
+  if (!value) return "-";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" });
+}
+
 function StatistikPage() {
+  const { isOwner, loading: authLoading } = useAuth();
+
+  if (authLoading) {
+    return (
+      <AppShell title="Statistik" subtitle="Memeriksa hak akses">
+        <p className="text-sm text-muted-foreground">Memuat…</p>
+      </AppShell>
+    );
+  }
+
+  if (!isOwner) {
+    return (
+      <AppShell title="Statistik" subtitle="Halaman khusus Owner">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Halaman khusus Owner</CardTitle>
+            <CardDescription>
+              Data percakapan dan statistik pengguna hanya dapat dibuka oleh akun Owner.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </AppShell>
+    );
+  }
+
+  return <StatistikOwnerView />;
+}
+
+function StatistikOwnerView() {
   const fetchStats = useServerFn(getStatistics);
+  const fetchOverview = useServerFn(getAdminOverview);
   const { data, isLoading, isError } = useQuery({
     queryKey: ["statistik"],
     queryFn: () => fetchStats(),
   });
+  const overviewQuery = useQuery({
+    queryKey: ["statistik-admin-overview"],
+    queryFn: () => fetchOverview(),
+  });
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  const conversations = useMemo(() => {
+    const rows = overviewQuery.data?.conversations ?? [];
+    const q = search.trim().toLowerCase();
+    return rows.filter((row) => {
+      if (statusFilter !== "all" && row.status !== statusFilter) return false;
+      if (!q) return true;
+      return (
+        row.contactName.toLowerCase().includes(q) ||
+        (row.waNumber ?? "").toLowerCase().includes(q) ||
+        (row.agentName ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [overviewQuery.data, search, statusFilter]);
+
 
   const waiting = data?.waitingAgent ?? 0;
   const summary = [
