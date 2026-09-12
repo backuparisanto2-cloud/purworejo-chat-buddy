@@ -20,7 +20,13 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getStatistics } from "@/lib/statistics.functions";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Link } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
+import { getAdminOverview, getStatistics } from "@/lib/statistics.functions";
+import { useAuth } from "@/lib/auth-context";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/statistik")({
@@ -47,12 +53,77 @@ function formatDuration(seconds: number | null): string {
   return `${m} mnt ${String(s).padStart(2, "0")} dtk`;
 }
 
+const STATUS_LABEL: Record<string, string> = {
+  bot_active: "Bot Aktif",
+  waiting_agent: "Menunggu Agent",
+  agent_active: "Ditangani Agent",
+  closed: "Selesai",
+};
+
+function formatDateTime(value: string | null): string {
+  if (!value) return "-";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" });
+}
+
 function StatistikPage() {
+  const { isOwner, loading: authLoading } = useAuth();
+
+  if (authLoading) {
+    return (
+      <AppShell title="Statistik" subtitle="Memeriksa hak akses">
+        <p className="text-sm text-muted-foreground">Memuat…</p>
+      </AppShell>
+    );
+  }
+
+  if (!isOwner) {
+    return (
+      <AppShell title="Statistik" subtitle="Halaman khusus Owner">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Halaman khusus Owner</CardTitle>
+            <CardDescription>
+              Data percakapan dan statistik pengguna hanya dapat dibuka oleh akun Owner.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </AppShell>
+    );
+  }
+
+  return <StatistikOwnerView />;
+}
+
+function StatistikOwnerView() {
   const fetchStats = useServerFn(getStatistics);
+  const fetchOverview = useServerFn(getAdminOverview);
   const { data, isLoading, isError } = useQuery({
     queryKey: ["statistik"],
     queryFn: () => fetchStats(),
   });
+  const overviewQuery = useQuery({
+    queryKey: ["statistik-admin-overview"],
+    queryFn: () => fetchOverview(),
+  });
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  const conversations = useMemo(() => {
+    const rows = overviewQuery.data?.conversations ?? [];
+    const q = search.trim().toLowerCase();
+    return rows.filter((row) => {
+      if (statusFilter !== "all" && row.status !== statusFilter) return false;
+      if (!q) return true;
+      return (
+        row.contactName.toLowerCase().includes(q) ||
+        (row.waNumber ?? "").toLowerCase().includes(q) ||
+        (row.agentName ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [overviewQuery.data, search, statusFilter]);
+
 
   const waiting = data?.waitingAgent ?? 0;
   const summary = [
@@ -157,6 +228,140 @@ function StatistikPage() {
                     <Legend iconSize={10} wrapperStyle={{ fontSize: 12 }} />
                   </PieChart>
                 </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </section>
+
+        <Card>
+          <CardHeader className="gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <CardTitle className="text-base">Daftar Percakapan</CardTitle>
+              <CardDescription>200 percakapan terbaru beserta status chatnya</CardDescription>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Cari nama, nomor, atau agent"
+                className="sm:w-56"
+                aria-label="Cari percakapan"
+              />
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="sm:w-48" aria-label="Filter status">
+                  <SelectValue placeholder="Semua status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua status</SelectItem>
+                  <SelectItem value="bot_active">Bot Aktif</SelectItem>
+                  <SelectItem value="waiting_agent">Menunggu Agent</SelectItem>
+                  <SelectItem value="agent_active">Ditangani Agent</SelectItem>
+                  <SelectItem value="closed">Selesai</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {conversations.length === 0 ? (
+              <p className="p-6 text-sm text-muted-foreground">
+                {overviewQuery.isLoading ? "Memuat data…" : "Tidak ada percakapan yang cocok."}
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Warga</TableHead>
+                      <TableHead className="w-44">Status</TableHead>
+                      <TableHead className="w-40">Agent</TableHead>
+                      <TableHead className="w-28">Pesan</TableHead>
+                      <TableHead className="w-44">Pesan Terakhir</TableHead>
+                      <TableHead className="w-24" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {conversations.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell>
+                          <p className="font-medium">{row.contactName}</p>
+                          <p className="text-xs text-muted-foreground">{row.waNumber ?? "-"}</p>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={row.status === "waiting_agent" ? "destructive" : "secondary"}>
+                            {STATUS_LABEL[row.status] ?? row.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{row.agentName ?? "-"}</TableCell>
+                        <TableCell className="font-semibold">{row.messageCount}</TableCell>
+                        <TableCell className="text-muted-foreground">{formatDateTime(row.lastMessageAt)}</TableCell>
+                        <TableCell>
+                          <Button asChild variant="ghost" size="sm">
+                            <Link to="/">Buka</Link>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <section className="grid grid-cols-1 gap-4 xl:grid-cols-5">
+          <Card className="xl:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-base">Statistik Pengguna</CardTitle>
+              <CardDescription>Warga yang pernah menghubungi layanan</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div>
+                <p className="text-xs uppercase text-muted-foreground">Warga unik</p>
+                <p className="text-2xl font-bold">{overviewQuery.data?.totalUsers ?? 0}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase text-muted-foreground">Baru minggu ini</p>
+                <p className="text-2xl font-bold">{overviewQuery.data?.newUsersThisWeek ?? 0}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase text-muted-foreground">Rata-rata pesan</p>
+                <p className="text-2xl font-bold">{overviewQuery.data?.avgMessagesPerUser ?? 0}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="xl:col-span-3">
+            <CardHeader>
+              <CardTitle className="text-base">Warga Paling Aktif</CardTitle>
+              <CardDescription>Berdasarkan jumlah pesan pada percakapan terbaru</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              {(overviewQuery.data?.topUsers ?? []).length === 0 ? (
+                <p className="p-6 text-sm text-muted-foreground">
+                  {overviewQuery.isLoading ? "Memuat data…" : "Belum ada data warga."}
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Warga</TableHead>
+                      <TableHead className="w-28">Pesan</TableHead>
+                      <TableHead className="w-44">Terakhir Aktif</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(overviewQuery.data?.topUsers ?? []).map((u) => (
+                      <TableRow key={u.id}>
+                        <TableCell>
+                          <p className="font-medium">{u.name}</p>
+                          <p className="text-xs text-muted-foreground">{u.waNumber ?? "-"}</p>
+                        </TableCell>
+                        <TableCell className="font-semibold">{u.messages}</TableCell>
+                        <TableCell className="text-muted-foreground">{formatDateTime(u.lastSeenAt)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               )}
             </CardContent>
           </Card>

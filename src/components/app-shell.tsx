@@ -55,10 +55,12 @@ export function SidebarNav({
   onNavigate?: () => void;
   badges?: Partial<Record<string, ReactNode>>;
 }) {
+  const { isOwner } = useAuth();
+  const items = APP_NAV.filter((item) => item.label !== "Statistik" || isOwner);
   return (
     <nav aria-label="Navigasi utama" className="flex-1 space-y-1 px-3 py-5">
       <p className="px-3 pb-2 text-[10px] font-semibold uppercase text-muted-foreground">Ruang kerja</p>
-      {APP_NAV.map(({ label, icon: Icon, to }) => (
+      {items.map(({ label, icon: Icon, to }) => (
         <Link
           key={label}
           to={to}

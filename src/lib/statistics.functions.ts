@@ -28,10 +28,21 @@ function startOfLocalDay(offsetDays = 0): Date {
   return d;
 }
 
+/** Pastikan pemanggil benar-benar berperan Owner. */
+async function assertOwner(context: { supabase: any; userId: string }) {
+  const { data, error } = await context.supabase.rpc("has_role", {
+    _user_id: context.userId,
+    _role: "owner",
+  });
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Halaman ini khusus akun Owner");
+}
+
 /** Ambil seluruh angka statistik layanan dari data asli. */
 export const getStatistics = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<StatsPayload> => {
+    await assertOwner(context);
     const db = context.supabase;
     const todayStart = startOfLocalDay(0).toISOString();
     const weekStart = startOfLocalDay(6).toISOString();
@@ -131,5 +142,114 @@ export const getStatistics = createServerFn({ method: "GET" })
         .map(([name, value]) => ({ name, value }))
         .sort((a, b) => b.value - a.value),
       agents,
+    };
+  });
+
+export type AdminConversationRow = {
+  id: string;
+  contactName: string;
+  waNumber: string | null;
+  status: string;
+  agentName: string | null;
+  messageCount: number;
+  lastMessageAt: string;
+};
+
+export type AdminUserRow = {
+  id: string;
+  name: string;
+  waNumber: string | null;
+  messages: number;
+  lastSeenAt: string | null;
+};
+
+export type AdminOverview = {
+  conversations: AdminConversationRow[];
+  totalUsers: number;
+  newUsersThisWeek: number;
+  avgMessagesPerUser: number;
+  topUsers: AdminUserRow[];
+};
+
+/** Daftar percakapan + statistik pengguna untuk halaman admin (Owner saja). */
+export const getAdminOverview = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<AdminOverview> => {
+    await assertOwner(context);
+    const db = context.supabase;
+    const weekStart = startOfLocalDay(6).toISOString();
+
+    const [convRes, contactsRes, msgRes] = await Promise.all([
+      db
+        .from("conversations")
+        .select("id, status, agent_name, last_message_at, contact_id")
+        .order("last_message_at", { ascending: false })
+        .limit(200),
+      db.from("contacts").select("id, name, wa_number, created_at").limit(2000),
+      db.from("messages").select("conversation_id, created_at").limit(10000),
+    ]);
+
+    const conversationsRaw = convRes.data ?? [];
+    const contacts = contactsRes.data ?? [];
+    const messages = msgRes.data ?? [];
+
+    const perConversation = new Map<string, number>();
+    for (const m of messages) {
+      const key = m.conversation_id ?? "";
+      if (!key) continue;
+      perConversation.set(key, (perConversation.get(key) ?? 0) + 1);
+    }
+
+    const contactById = new Map(contacts.map((c) => [c.id, c]));
+
+    const conversations: AdminConversationRow[] = conversationsRaw.map((c) => {
+      const contact = c.contact_id ? contactById.get(c.contact_id) : undefined;
+      return {
+        id: c.id,
+        contactName: contact?.name || contact?.wa_number || "Warga",
+        waNumber: contact?.wa_number ?? null,
+        status: c.status,
+        agentName: c.agent_name ?? null,
+        messageCount: perConversation.get(c.id) ?? 0,
+        lastMessageAt: c.last_message_at,
+      };
+    });
+
+    // Agregat per warga (kontak) berdasarkan percakapan miliknya.
+    const perContactMessages = new Map<string, number>();
+    const perContactLast = new Map<string, string>();
+    for (const c of conversationsRaw) {
+      if (!c.contact_id) continue;
+      perContactMessages.set(
+        c.contact_id,
+        (perContactMessages.get(c.contact_id) ?? 0) + (perConversation.get(c.id) ?? 0),
+      );
+      const prev = perContactLast.get(c.contact_id);
+      if (!prev || String(c.last_message_at) > prev) {
+        perContactLast.set(c.contact_id, String(c.last_message_at));
+      }
+    }
+
+    const totalUsers = contacts.length;
+    const newUsersThisWeek = contacts.filter((c) => String(c.created_at) >= weekStart).length;
+    const totalMessages = messages.length;
+
+    const topUsers: AdminUserRow[] = contacts
+      .map((c) => ({
+        id: c.id,
+        name: c.name || c.wa_number || "Warga",
+        waNumber: c.wa_number ?? null,
+        messages: perContactMessages.get(c.id) ?? 0,
+        lastSeenAt: perContactLast.get(c.id) ?? null,
+      }))
+      .sort((a, b) => b.messages - a.messages)
+      .slice(0, 10);
+
+    return {
+      conversations,
+      totalUsers,
+      newUsersThisWeek,
+      avgMessagesPerUser: totalUsers > 0 ? Math.round((totalMessages / totalUsers) * 10) / 10 : 0,
+      topUsers,
     };
   });
