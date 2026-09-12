@@ -28,10 +28,21 @@ function startOfLocalDay(offsetDays = 0): Date {
   return d;
 }
 
+/** Pastikan pemanggil benar-benar berperan Owner. */
+async function assertOwner(context: { supabase: any; userId: string }) {
+  const { data, error } = await context.supabase.rpc("has_role", {
+    _user_id: context.userId,
+    _role: "owner",
+  });
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Halaman ini khusus akun Owner");
+}
+
 /** Ambil seluruh angka statistik layanan dari data asli. */
 export const getStatistics = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<StatsPayload> => {
+    await assertOwner(context);
     const db = context.supabase;
     const todayStart = startOfLocalDay(0).toISOString();
     const weekStart = startOfLocalDay(6).toISOString();
