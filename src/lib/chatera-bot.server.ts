@@ -54,20 +54,56 @@ export function relativizeMenu(body: string): string {
   return body.replace(CHILD_CODE, (_m, code: string) => `[${code.split(".").pop()}]`);
 }
 
-function parentKeyOf(key: string): string | null {
-  const parts = key.split(".");
-  return parts.length > 1 ? parts.slice(0, -1).join(".") : null;
+/**
+ * Peta navigasi eksplisit per layar menu:
+ * - children: path anak yang BENAR-BENAR ditawarkan pada layar itu.
+ * - back: satu path tujuan tombol "kembali" yang tertulis pada layar itu.
+ * Input warga hanya boleh dicocokkan ke dua daftar ini, tidak pernah ditebak
+ * dengan menggabung path ke seluruh isi PURWOREJO_CONTENT.
+ */
+export type MenuNode = { children: string[]; back: string | null };
+
+const BACK_CODE = /Ketik \*(\d+(?:\.\d+)*)\* untuk kembali/g;
+
+function buildMenuGraph(): Record<string, MenuNode> {
+  const graph: Record<string, MenuNode> = {};
+  for (const [key, body] of Object.entries(PURWOREJO_CONTENT)) {
+    if (key === "utama") continue;
+    const children: string[] = [];
+    CHILD_CODE.lastIndex = 0;
+    for (const m of body.matchAll(CHILD_CODE)) {
+      const code = m[1]!;
+      if (code.startsWith(`${key}.`) && code.split(".").length === key.split(".").length + 1) {
+        children.push(code);
+      }
+    }
+    let back: string | null = null;
+    BACK_CODE.lastIndex = 0;
+    for (const m of body.matchAll(BACK_CODE)) {
+      const target = m[1]!;
+      if (target !== "0" && target !== key && PURWOREJO_CONTENT[target]) back = target;
+    }
+    graph[key] = { children, back };
+  }
+  // Menu utama: anak = kategori level 1, tanpa tombol kembali.
+  graph["utama"] = {
+    children: Object.keys(PURWOREJO_CONTENT).filter((k) => /^\d+$/.test(k)),
+    back: null,
+  };
+  return graph;
 }
 
-/** Posisi menu yang harus disimpan setelah menampilkan sebuah halaman. */
-function menuPathAfter(key: string): string | null {
-  const body = PURWOREJO_CONTENT[key] ?? "";
-  CHILD_CODE.lastIndex = 0;
-  if (CHILD_CODE.test(body)) return key;
-  return parentKeyOf(key);
+export const MENU_GRAPH: Record<string, MenuNode> = buildMenuGraph();
+
+function nodeFor(currentMenuPath: string | null): MenuNode {
+  return (currentMenuPath && MENU_GRAPH[currentMenuPath]) || MENU_GRAPH["utama"]!;
 }
 
 export type AutoReply = { reply: string; menuPath: string | null };
+
+function show(key: string): AutoReply {
+  return { reply: relativizeMenu(PURWOREJO_CONTENT[key]!), menuPath: key };
+}
 
 /** Menentukan balasan otomatis untuk sebuah pesan warga (nomor relatif didukung). */
 export function resolveAutoReply(
@@ -80,26 +116,21 @@ export function resolveAutoReply(
   const key = toMenuKey(normalized);
   if (key === "0" || key === "") return { reply: MAIN_MENU, menuPath: null };
 
-  // Nomor pendek (tanpa titik) diartikan relatif terhadap menu terakhir.
-  let resolved: string | null = null;
-  if (!key.includes(".") && currentMenuPath) {
-    const combined = `${currentMenuPath}.${key}`;
-    if (PURWOREJO_CONTENT[combined]) resolved = combined;
-  }
-  if (!resolved && PURWOREJO_CONTENT[key]) resolved = key; // fallback kode penuh / menu utama
-  if (resolved) {
-    return { reply: relativizeMenu(PURWOREJO_CONTENT[resolved]!), menuPath: menuPathAfter(resolved) };
-  }
+  const current = currentMenuPath && PURWOREJO_CONTENT[currentMenuPath] ? currentMenuPath : null;
+  const node = nodeFor(current);
 
-  // Fallback ke menu induk terdekat, mis. 3.10.9 -> 3.10 -> 3
-  const baseKey = !key.includes(".") && currentMenuPath ? `${currentMenuPath}.${key}` : key;
-  const parts = baseKey.split(".");
-  for (let i = parts.length - 1; i > 0; i--) {
-    const parentKey = parts.slice(0, i).join(".");
-    const parent = PURWOREJO_CONTENT[parentKey];
-    if (parent) {
-      return { reply: UNKNOWN_PREFIX + relativizeMenu(parent), menuPath: menuPathAfter(parentKey) };
-    }
+  // 1. Pilihan anak yang memang ditampilkan di layar ini (nomor relatif / kode penuh).
+  const child = node.children.find(
+    (c) => c === key || c.split(".").pop() === key,
+  );
+  if (child) return show(child);
+
+  // 2. Angka "kembali" yang memang ditawarkan pada layar ini.
+  if (node.back && node.back === key) return show(node.back);
+
+  // 3. Tidak dikenali: tampilkan ulang layar yang sedang aktif, tanpa menebak.
+  if (current) {
+    return { reply: UNKNOWN_PREFIX + relativizeMenu(PURWOREJO_CONTENT[current]!), menuPath: current };
   }
   return { reply: UNKNOWN_PREFIX + MAIN_MENU, menuPath: null };
 }
@@ -141,9 +172,9 @@ export function isMenuInput(
   if (normalized === "") return true;
   if (GREETINGS.has(normalized)) return true;
   const cleaned = normalized.replace(/[)\]\s]/g, "");
-  if (!/^\d+(\.\d+)*$/.test(cleaned)) return false;
-  if (cleaned === "0" || PURWOREJO_CONTENT[cleaned]) return true;
-  return Boolean(currentMenuPath && PURWOREJO_CONTENT[`${currentMenuPath}.${cleaned}`]);
+  // Semua input berupa angka ditangani navigasi menu (termasuk angka yang tidak
+  // ditawarkan di layar aktif -> dijawab "pilihan tidak dikenali" + menu ulang).
+  return /^\d+(\.\d+)*$/.test(cleaned);
 }
 
 export function needsAgent(text: string | null | undefined): boolean {
