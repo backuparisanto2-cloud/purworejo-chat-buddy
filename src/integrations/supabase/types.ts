@@ -14,7 +14,270 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      chatera_messages: {
+        Row: {
+          channel_id: string | null
+          content_text: string | null
+          conversation_id: string | null
+          delivery_id: string
+          direction: string
+          event_timestamp: string | null
+          event_type: string
+          id: string
+          message_id: string | null
+          received_at: string
+          sender_name: string | null
+          sender_phone: string | null
+        }
+        Insert: {
+          channel_id?: string | null
+          content_text?: string | null
+          conversation_id?: string | null
+          delivery_id: string
+          direction?: string
+          event_timestamp?: string | null
+          event_type: string
+          id?: string
+          message_id?: string | null
+          received_at?: string
+          sender_name?: string | null
+          sender_phone?: string | null
+        }
+        Update: {
+          channel_id?: string | null
+          content_text?: string | null
+          conversation_id?: string | null
+          delivery_id?: string
+          direction?: string
+          event_timestamp?: string | null
+          event_type?: string
+          id?: string
+          message_id?: string | null
+          received_at?: string
+          sender_name?: string | null
+          sender_phone?: string | null
+        }
+        Relationships: []
+      }
+      contacts: {
+        Row: {
+          channel_id: string | null
+          chatera_contact_id: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string | null
+          updated_at: string
+          wa_number: string | null
+        }
+        Insert: {
+          channel_id?: string | null
+          chatera_contact_id?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string | null
+          updated_at?: string
+          wa_number?: string | null
+        }
+        Update: {
+          channel_id?: string | null
+          chatera_contact_id?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string | null
+          updated_at?: string
+          wa_number?: string | null
+        }
+        Relationships: []
+      }
+      conversations: {
+        Row: {
+          assigned_agent_chatera_id: string | null
+          chatera_conversation_id: string | null
+          contact_id: string | null
+          created_at: string
+          id: string
+          last_message_at: string
+          status: Database["public"]["Enums"]["conversation_status"]
+        }
+        Insert: {
+          assigned_agent_chatera_id?: string | null
+          chatera_conversation_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          last_message_at?: string
+          status?: Database["public"]["Enums"]["conversation_status"]
+        }
+        Update: {
+          assigned_agent_chatera_id?: string | null
+          chatera_conversation_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          last_message_at?: string
+          status?: Database["public"]["Enums"]["conversation_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_base: {
+        Row: {
+          answer: string
+          category: string
+          created_at: string
+          id: string
+          is_active: boolean
+          keywords: string[]
+          source_document_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          answer?: string
+          category?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          keywords?: string[]
+          source_document_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          answer?: string
+          category?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          keywords?: string[]
+          source_document_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_base_source_document_id_fkey"
+            columns: ["source_document_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_documents: {
+        Row: {
+          category: string
+          created_at: string
+          entries_created: number
+          error_message: string | null
+          file_name: string
+          file_type: string
+          id: string
+          status: Database["public"]["Enums"]["knowledge_document_status"]
+          storage_path: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          entries_created?: number
+          error_message?: string | null
+          file_name: string
+          file_type: string
+          id?: string
+          status?: Database["public"]["Enums"]["knowledge_document_status"]
+          storage_path: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          entries_created?: number
+          error_message?: string | null
+          file_name?: string
+          file_type?: string
+          id?: string
+          status?: Database["public"]["Enums"]["knowledge_document_status"]
+          storage_path?: string
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          chatera_message_id: string | null
+          content: Json
+          content_type: string
+          conversation_id: string | null
+          created_at: string
+          direction: string
+          id: string
+          sender_type: Database["public"]["Enums"]["message_sender_type"]
+          status: string | null
+          whatsapp_message_id: string | null
+        }
+        Insert: {
+          chatera_message_id?: string | null
+          content?: Json
+          content_type?: string
+          conversation_id?: string | null
+          created_at?: string
+          direction?: string
+          id?: string
+          sender_type?: Database["public"]["Enums"]["message_sender_type"]
+          status?: string | null
+          whatsapp_message_id?: string | null
+        }
+        Update: {
+          chatera_message_id?: string | null
+          content?: Json
+          content_type?: string
+          conversation_id?: string | null
+          created_at?: string
+          direction?: string
+          id?: string
+          sender_type?: Database["public"]["Enums"]["message_sender_type"]
+          status?: string | null
+          whatsapp_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhook_deliveries: {
+        Row: {
+          delivery_id: string
+          event: string
+          id: string
+          processed_at: string
+        }
+        Insert: {
+          delivery_id: string
+          event: string
+          id?: string
+          processed_at?: string
+        }
+        Update: {
+          delivery_id?: string
+          event?: string
+          id?: string
+          processed_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +286,13 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      conversation_status:
+        | "bot_active"
+        | "waiting_agent"
+        | "agent_active"
+        | "closed"
+      knowledge_document_status: "processing" | "done" | "failed"
+      message_sender_type: "user" | "bot" | "agent"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +419,15 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      conversation_status: [
+        "bot_active",
+        "waiting_agent",
+        "agent_active",
+        "closed",
+      ],
+      knowledge_document_status: ["processing", "done", "failed"],
+      message_sender_type: ["user", "bot", "agent"],
+    },
   },
 } as const
