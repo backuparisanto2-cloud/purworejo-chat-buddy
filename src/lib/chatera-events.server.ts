@@ -155,11 +155,17 @@ async function handleMessageEvent(
   db: SupabaseAdmin,
   event: string,
   data: Record<string, unknown>,
-): Promise<{ conversationId: string | null; senderPhone: string | null; text: string | null }> {
+): Promise<{
+  conversationId: string | null;
+  senderPhone: string | null;
+  senderName: string | null;
+  text: string | null;
+}> {
   const sender = (data["sender"] ?? {}) as Record<string, unknown>;
   const inbound = event === "message.inbound";
   const direction = inbound ? "inbound" : (str(data["direction"]) ?? "outbound");
   const senderPhone = normalizePhone(str(sender["phone"]) ?? str(data["phone"]));
+
 
   const contactDbId = await upsertContact(db, {
     contactId: str(data["contactId"]),
